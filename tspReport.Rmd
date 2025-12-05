@@ -1,0 +1,274 @@
+---
+title: "Solving the Unsolvable: An Analysis of TSP Approximation Algorithms"
+author: "Adam Jeribi, Gena Kriss, Joseph Sebujangwe"
+date: ""
+output:
+  pdf_document:
+    number_sections: true
+    toc: false
+    toc_depth: 2
+---
+
+# Introduction
+
+The Traveling Salesman Problem (TSP) is one of the most famous problems in combinatorial optimization and theoretical computer science. Informally, a traveling salesperson wants to visit a set of cities, each exactly once, and return to the starting point, while minimizing the total distance of the tour.
+
+The exact origin of the TSP is unclear. An early appearance is in an 1832 handbook for traveling salesmen that presented example tours through Germany and Switzerland. In the 19th century, William Rowan Hamilton and Thomas Kirkman gave early mathematical formulations of problems that are essentially TSP-like. In the 20th century, interest in TSP exploded as it became a central benchmark for algorithms and computational complexity.
+
+Despite its simple statement, TSP is extremely challenging. In general graphs, the problem is NP-Hard, and exact methods become infeasible very quickly as the number of cities grows. This has motivated the development of approximation algorithms and heuristics that produce good, but not necessarily optimal, tours in polynomial time.
+
+This report is based on a class presentation and aims to:
+
+* present the TSP and its complexity,
+* describe several approximation and heuristic algorithms (Nearest Neighbor, Christofides, and 2-Opt),
+* discuss their performance on benchmark instances, including a large Canada 4663-city dataset.
+
+# The Traveling Salesman Problem
+
+## Problem definition
+
+Given a set of cities and pairwise distances between them, the Traveling Salesman Problem asks:
+
+> Find the shortest possible tour that visits each city exactly once and returns to the starting city.
+
+More formally, let \(G = (V, E)\) be a complete weighted graph, where (V) is the set of vertices (cities) and (E) is the set of edges with a distance (or cost) function \(c : V \times V \to \mathbb{R}_{\ge 0}\). A **tour** is a permutation of the vertices that forms a cycle, visiting each vertex exactly once and returning to the start. The cost of a tour is the sum of the edge weights along the cycle. The goal is to find a tour of minimum total cost.
+
+TSP appears in many domains beyond literal travel:
+
+* routing delivery trucks and mail,
+* planning the path of a drill in printed circuit board manufacturing,
+* sequencing tasks in production,
+* certain formulations of genome sequencing and data clustering.
+
+## Decision problem formulation
+
+For complexity theory, it is useful to formulate TSP as a decision problem:
+
+\[
+\text{TSP} = \left\{ \langle G, c, k \rangle :
+G = (V,E) \text{ is a complete graph},\
+c : V \times V \to \mathbb{N},\
+k \in \mathbb{N},\
+\text{and } G \text{ has a traveling-salesman tour of cost at most } k
+\right\}.
+\]
+
+In words:
+
+> Given a complete weighted graph \(G\) and a bound \(k\), does there exist a tour that visits every vertex exactly once, returns to the start, and has total cost at most \(k\)?
+
+This decision version is convenient to place TSP in complexity classes such as NP and NP-Hard.
+
+# Complexity and NP-Hardness
+
+## Complexity classes
+
+We briefly recall some standard complexity notions:
+
+* A problem (p) is in **NP** if, given a candidate solution, there exists a polynomial-time algorithm to verify that the solution is correct.
+
+* A problem (p) is **NP-Complete** if:
+
+  1. \(p \in \text{NP}\), and
+  2. every problem in NP can be reduced to (p) in polynomial time.
+
+* A problem (p) is **NP-Hard** if every problem in NP can be reduced to (p) in polynomial time. It does not need to be in NP itself (for example, optimization problems without a natural polynomial-sized certificate can be NP-Hard but not in NP).
+
+The Traveling Salesman Problem in its optimization form is a classic NP-Hard problem. The decision version of TSP is NP-Complete.
+
+## Sketch of NP-Hardness via HAM-CYCLE
+
+A standard reduction to show TSP is NP-Hard uses the Hamiltonian cycle problem:
+
+> **HAM-CYCLE**: Given an undirected graph (G), does (G) contain a Hamiltonian cycle?
+
+A **Hamiltonian cycle** is a simple cycle that starts and ends at some vertex (x) and visits every vertex exactly once. HAM-CYCLE is known to be NP-Complete.
+
+To reduce HAM-CYCLE to TSP, we proceed as follows (high level idea):
+
+1. Given an instance of HAM-CYCLE with graph (G = (V, E)), construct a complete weighted graph \(G' = (V, E')\) on the same vertex set.
+2. For each pair of vertices (u, v):
+
+   * If \({u, v} \in E\) (original edge exists), set \(c(u, v) = 1\).
+   * If \({u, v} \notin E\), set (c(u, v)) to a very large number (M) \(for example, (M = 2)\).
+3. Choose \(k = |V|\).
+
+In this construction, (G) has a Hamiltonian cycle if and only if (G') has a tour of cost at most (k). If a Hamiltonian cycle exists, we can follow its edges, each of cost 1, to obtain a tour of cost exactly (|V|). Conversely, any tour of cost at most (|V|) cannot use any edge of cost (M > 1), so all edges in the tour must come from the original graph (E), forming a Hamiltonian cycle.
+
+Since HAM-CYCLE is NP-Complete, and it reduces to TSP in polynomial time, TSP is NP-Hard.
+
+## Why brute force is infeasible
+
+The number of possible TSP tours grows factorially. For a symmetric TSP on (n) cities, the number of distinct tours is approximately ((n-1)! / 2). Even for modest (n), this quantity is enormous:
+
+* For (n = 10), there are about \(3{,}628{,}800\) tours.
+* For (n = 20), there are on the order of \(10^{18}\) tours.
+
+Enumerating all tours becomes practically impossible, even with powerful hardware. This is why exact algorithms for general TSP instances rely on sophisticated branch-and-cut and cutting-plane techniques, and why approximation algorithms and heuristics are essential for large instances.
+
+# Approximation Algorithms and Heuristics
+
+Because TSP is NP-Hard, it is unlikely that there exists a polynomial-time algorithm that always finds an optimal tour for all instances. However, for many practical purposes, a near-optimal solution is sufficient. This motivates **approximation algorithms** and **heuristics**.
+
+Approximation algorithms are designed to:
+
+* run in polynomial time,
+* produce tours whose cost is provably within a factor \(\alpha \ge 1\) of optimal (for all instances in a certain class).
+
+Heuristics may not have a provable guarantee but are often effective in practice.
+
+In this report we focus on:
+
+* the Nearest Neighbor heuristic,
+* Christofides’ algorithm (for metric TSP),
+* the 2-Opt local improvement heuristic.
+
+## The Nearest Neighbor (NN) heuristic
+
+The Nearest Neighbor algorithm is a very simple greedy heuristic.
+
+**Idea:** start from a city, then repeatedly visit the closest unvisited city until all cities have been visited, finally returning to the start.
+
+**Algorithm (Nearest Neighbor):**
+
+* **Input:** A complete weighted graph (G = (V, E)) with distance function (c).
+* **Output:** A tour visiting all vertices.
+
+Steps:
+
+1. Mark all vertices as unvisited.
+2. Choose a starting vertex (u), and mark it as visited.
+3. While there is at least one unvisited vertex:
+
+   * among all unvisited vertices (v), choose a vertex that minimizes (c(u, v)),
+   * move to (v), set \(u \leftarrow v\), and mark (v) as visited.
+4. After all vertices are visited, return to the starting vertex.
+
+In a straightforward implementation, step 3 runs in (O(n)) time for each of the (n) vertices, leading to a time complexity of \(\Theta(n^2)\).
+
+**Advantages:**
+
+* extremely simple,
+* runs very quickly in practice,
+* can produce acceptable tours on some instances.
+
+**Limitations:**
+
+* the algorithm is myopic: it only considers local information (nearest unvisited city),
+* it can produce tours that are far from optimal,
+* the solution quality depends heavily on the choice of starting city,
+* tours often have many crossing edges and a “rough” shape in geometric instances.
+
+Because of these limitations, NN is often used as a starting point for further optimization.
+
+## Christofides’ algorithm
+
+Christofides’ algorithm is a classic approximation algorithm for the **metric TSP**, where the distances satisfy the triangle inequality:
+
+\[
+c(u, w) \le c(u, v) + c(v, w)
+\]
+
+for all vertices \(u, v, w\). This condition is natural in many geometric and distance-based applications.
+
+Christofides’ algorithm has a proven approximation ratio of at most \(3/2\): it always produces a tour whose cost is at most \(1.5\) times the optimal tour cost.
+
+### Graph-theoretic ingredients
+
+Christofides’ algorithm relies on several key concepts from graph theory:
+
+* **Minimum Spanning Tree (MST):**
+  A spanning tree of (G) is a connected, acyclic subgraph that includes all vertices. A minimum spanning tree is a spanning tree with minimum total edge weight. Classic algorithms to compute MSTs include Kruskal’s and Prim’s algorithms.
+
+* **Eulerian cycle:**
+  An Eulerian cycle in a graph is a cycle that traverses every edge exactly once. A connected graph has an Eulerian cycle if and only if every vertex has even degree (Euler’s theorem).
+
+* **Matching and perfect matching:**
+  A matching in a graph is a set of edges no two of which share a vertex. A perfect matching is a matching that covers every vertex: each vertex is incident to exactly one edge in the matching.
+
+* **Minimum Weight Perfect Matching (MWPM):**
+  In a weighted graph, a minimum weight perfect matching is a perfect matching with minimum total weight.
+
+### Algorithm description
+
+Let (G = (V, E)) be a complete weighted graph with metric edge weights.
+
+**Christofides’ algorithm:**
+
+1. Compute a minimum spanning tree (T = (V, F)) of (G).
+2. Let \(U \subseteq V\) be the set of vertices of odd degree in (T).
+3. Compute a minimum weight perfect matching (J) on the subgraph induced by (U).
+4. Form a multigraph \(T' = (V, F \cup J)\), combining the MST edges and the matching edges. In this multigraph, every vertex has even degree.
+5. Find an Eulerian cycle (C) in (T') (this exists because all degrees are even).
+6. Traverse (C) and **shortcut** repeated vertices: whenever you are about to visit a vertex that has already appeared, skip it and go directly to the next new vertex. Because of the triangle inequality, this shortcutting does not increase the total cost.
+7. The resulting sequence of vertices forms a Hamiltonian cycle, i.e., a valid TSP tour.
+
+The computational bottleneck is typically step 3 (computing the minimum weight perfect matching), which in general can be done in \(O(n^{3})\) time for (n) vertices.
+
+### Approximation guarantee
+
+Let \(\text{OPT}\) denote the cost of an optimal TSP tour.
+
+We outline why Christofides’ algorithm achieves a \(\tfrac{3}{2}\)-approximation for metric TSP:
+
+1. The cost of the MST is at most the cost of an optimal tour:
+   \[
+   w(T) \le \text{OPT},
+   \]
+   because removing one edge from an optimal tour yields a spanning tree.
+
+2. The set \(U\) of odd-degree vertices has even cardinality (this is a property of any graph: the number of odd-degree vertices is even).
+
+3. Consider the restriction of an optimal TSP tour to the vertices in \(U\). In a metric space, one can show that there exists a perfect matching on \(U\) of total cost at most \(\tfrac{1}{2},\text{OPT}\). Hence,
+   \[
+   w(J) \le \frac{1}{2},\text{OPT}.
+   \]
+
+4. The Eulerian multigraph formed by \(F \cup J\) has total weight
+   \[
+   w(T) + w(J) \le \text{OPT} + \frac{1}{2},\text{OPT} = \frac{3}{2},\text{OPT}.
+   \]
+
+5. When we shortcut repeated vertices along the Eulerian cycle to obtain a Hamiltonian cycle, the triangle inequality ensures that the resulting tour cannot be longer than the Eulerian walk. Therefore, the final tour has cost at most \(\tfrac{3}{2},\text{OPT}\).
+
+Thus Christofides’ algorithm is a polynomial-time \(\tfrac{3}{2}\)-approximation algorithm for metric TSP.
+
+## 2-Opt local search heuristic
+
+The Nearest Neighbor heuristic can produce tours with many local inefficiencies, such as edge crossings. Local search heuristics like **2-Opt** are designed to improve an existing tour by applying small changes.
+
+The 2-Opt heuristic repeatedly attempts to improve the tour by replacing two edges with two different edges that preserve the tour structure but shorten the total length.
+
+### 2-Opt move
+
+Suppose we have a tour visiting cities in the order
+\[
+A \to B \to E \to D \to C \to F \to G \to H \to A.
+\]
+
+Consider the segment from \(B\) to \(E\) and from \(C\) to \(F\). A 2-Opt move removes two edges and reconnects the tour by reversing the intermediate segment. For example:
+
+* remove edges \((B, E)\) and \((C, F)\),
+* reverse the intermediate segment \(E \to D \to C\),
+* reconnect as \((B, C)\) and \((E, F)\),
+
+yielding a tour such as
+
+\[
+A \to B \to C \to D \to E \to F \to G \to H \to A.
+\]
+
+If this new tour has a shorter total cost, the 2-Opt move is accepted.
+
+### 2-Opt heuristic
+
+Given an initial tour:
+
+1. Enumerate pairs of indices ((i, j)) along the tour where (i < j) and the edges ((v_i, v_{i+1})), ((v_j, v_{j+1})) are non-adjacent.
+2. For each candidate pair ((i, j)), compute the change in cost if we perform the 2-Opt move that reverses the segment between positions (i+1) and (j).
+3. If any move produces an improvement, apply the best improving move.
+4. Repeat until no improving 2-Opt move can be found.
+
+A naive implementation has (O(n^2)) possible edge pairs and computing each tentative move also takes time, so overall complexity is typically on the order of (O(n^2)) per pass, but in practice 2-Opt is still quite efficient for many instances.
+
+2-Opt is often applied on top of a heuristic like Nearest Neighbor: NN produces an initial tour, and 2-Opt “smooths out” local crossings and shortens the tour.

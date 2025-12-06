@@ -33,11 +33,13 @@ class TS(object):
         print("Best length from NN: ", self.best_lengthNN)
         
         #Running 2 optimization on NN tour output
-        # self.two_optimize = two_opt(self.path, self.dis_mat)
-        # self.best_path = self.two_optimize
-        # self.two_opt_nn_cost = compute_pathlen(self.two_optimize, self.dis_mat)
-        # print("Path after optimization is: ", self.two_optimize)
-        # print("Total path cost after optimization: ", self.two_opt_nn_cost)
+        self.two_optimize = two_opt(self.path, self.dis_mat)
+        self.best_path = self.two_optimize
+        self.two_opt_nn_cost = compute_pathlen(self.two_optimize, self.dis_mat)
+        print("Path after optimization is: ", self.two_optimize)
+
+        writeToFile('optimumsolution.tsp',self.two_optimize)
+        print("Total path cost after optimization: ", self.two_opt_nn_cost)
 
         print("Best path is: ", self.best_path)
         toc = time.perf_counter_ns()
@@ -295,6 +297,15 @@ def two_opt(route, cost_mat):
         route = best
     return best
 
+def writeToFile(filename, tour):
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("TOUR_SECTION\n")
+        for city in tour:
+            f.write(f"{int(city)}\n")
+        f.write("-1\nEOF\n")
+
+
+
 def read_tsp(path):
     lines = open(path, 'r').readlines()
     assert 'NODE_COORD_SECTION\n' in lines
@@ -344,32 +355,21 @@ path_xy = np.vstack([path_xy, path_xy[0]])
 
 # 3. Plotting
 plt.figure(figsize=(10, 6)) # Create a nice big figure
-#plt.suptitle('TSP Optimization Result')
-
-# Subplot 1: The messy raw data (optional, maybe just dots)
-# plt.subplot(1, 2, 1)
-# plt.title('Raw City Locations')
-# plt.scatter(data[:, 0], data[:, 1], s=1, color='gray') # Just dots
-
-# Subplot 2: Your optimized path
 plt.subplot(1, 1, 1)
 plt.title(f'NN Optimized Tour of cost {model.best_lengthNN}')
-# 'b-' means blue line, linewidth makes it look cleaner for large datasets
 plt.plot(path_xy[:, 1], path_xy[:, 0], 'b-', linewidth=0.5) 
 
 plt.scatter(path_xy[0, 1], path_xy[0, 0], c='red', s=10, zorder=10, label='Start')
 
-# Optional: Add a legend if you want it to say "Start"
-# plt.legend()
 
 plt.axis('off')
-# Optional: Draw the cities as red dots on top of the path
-# plt.scatter(path_xy[:, 0], path_xy[:, 1], s=2, c='red') 
 
 plt.tight_layout()
 plt.gca().invert_xaxis()
 plt.show()
 
+
+#===================================================================================================================
 # Best_path, Best_length = model.run()
 
 # Best_path = np.vstack([Best_path, Best_path[0]])

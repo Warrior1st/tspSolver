@@ -45,13 +45,19 @@ TSP appears in many domains beyond literal travel:
 For complexity theory, it is useful to formulate TSP as a decision problem:
 
 \[
-\text{TSP} = \left\{ \langle G, c, k \rangle :
-G = (V,E) \text{ is a complete graph},\
-c : V \times V \to \mathbb{N},\
-k \in \mathbb{N},\
-\text{and } G \text{ has a traveling-salesman tour of cost at most } k
+\text{TSP} =
+\left\{
+\begin{aligned}
+\langle G, c, k \rangle :\;&
+G = (V,E) \text{ is a complete graph},\\
+& c : V \times V \to \mathbb{N},\\
+& k \in \mathbb{N},\\
+& \text{and } G \text{ has a traveling-salesman tour of cost at most } k
+\end{aligned}
 \right\}.
 \]
+
+
 
 In words:
 
@@ -59,9 +65,9 @@ In words:
 
 This decision version is convenient to place TSP in complexity classes such as NP and NP-Hard.
 
-# Complexity and NP-Hardness
+## Complexity and NP-Hardness
 
-## Complexity classes
+### Complexity classes
 
 We briefly recall some standard complexity notions:
 
@@ -72,11 +78,11 @@ We briefly recall some standard complexity notions:
   1. \(p \in \text{NP}\), and
   2. every problem in NP can be reduced to (p) in polynomial time.
 
-* A problem (p) is **NP-Hard** if every problem in NP can be reduced to (p) in polynomial time. It does not need to be in NP itself (for example, optimization problems without a natural polynomial-sized certificate can be NP-Hard but not in NP).
+* A problem (p) is **NP-Hard** if every problem in NP can be reduced to (p) in polynomial time. It does not need to be in NP itself.
 
 The Traveling Salesman Problem in its optimization form is a classic NP-Hard problem. The decision version of TSP is NP-Complete.
 
-## Sketch of NP-Hardness via HAM-CYCLE
+### Proof of NP-Hardness via HAM-CYCLE
 
 A standard reduction to show TSP is NP-Hard uses the Hamiltonian cycle problem:
 
@@ -84,25 +90,28 @@ A standard reduction to show TSP is NP-Hard uses the Hamiltonian cycle problem:
 
 A **Hamiltonian cycle** is a simple cycle that starts and ends at some vertex (x) and visits every vertex exactly once. HAM-CYCLE is known to be NP-Complete.
 
-To reduce HAM-CYCLE to TSP, we proceed as follows (high level idea):
+To reduce HAM-CYCLE to TSP, we proceed as follows:
 
-1. Given an instance of HAM-CYCLE with graph (G = (V, E)), construct a complete weighted graph \(G' = (V, E')\) on the same vertex set.
-2. For each pair of vertices (u, v):
+1. Given an instance of HAM-CYCLE with graph (G = (V, E)), construct a complete weighted graph \(G' = (V, E')\), where
+\[
+E' = \{(i,j)\in V\times V \mid i \neq j\}.
+\]
+ on the same vertex set.
+2. For each pair of vertices (i, j):
 
-   * If \({u, v} \in E\) (original edge exists), set \(c(u, v) = 1\).
-   * If \({u, v} \notin E\), set (c(u, v)) to a very large number (M) \(for example, (M = 2)\).
-3. Choose \(k = |V|\).
-
-In this construction, (G) has a Hamiltonian cycle if and only if (G') has a tour of cost at most (k). If a Hamiltonian cycle exists, we can follow its edges, each of cost 1, to obtain a tour of cost exactly (|V|). Conversely, any tour of cost at most (|V|) cannot use any edge of cost (M > 1), so all edges in the tour must come from the original graph (E), forming a Hamiltonian cycle.
+   * If \({i, j} \in E\) (original edge exists), set \(c(u, v) = 1\).
+   * If \({i, j} \notin E\), set (c(u, v)) to a very large number (M) \(for example, (M = 2)\).
+3. We now show that graph (G) has a Hamiltonian cycle if and only if (G') has a tour of cost at most (k). If graph G has a hamiltonian cycle h, each edge in h belongs to E and thus has cost 0 in G'. Thus, h is a tour in G' with cost 0.
+Conversely, suppose that graph G' has a tour h' of cost at most 0. Since the costs of the edges in E' are 0 and 1, the cost of tour h' is exactly 0 and each edge on the tour must have cost 0. Therefore, h' contains only edges in E. We conclude that h' is a hamiltonian cycle in graph G. 
 
 Since HAM-CYCLE is NP-Complete, and it reduces to TSP in polynomial time, TSP is NP-Hard.
 
-## Why brute force is infeasible
+### Why brute force is infeasible
 
 The number of possible TSP tours grows factorially. For a symmetric TSP on (n) cities, the number of distinct tours is approximately ((n-1)! / 2). Even for modest (n), this quantity is enormous:
 
-* For (n = 10), there are about \(3{,}628{,}800\) tours.
-* For (n = 20), there are on the order of \(10^{18}\) tours.
+* For (n = 10), there are about \(184{,}440\) tours.
+* For (n = 20), there are on the order of \(10^{16}\) tours.
 
 Enumerating all tours becomes practically impossible, even with powerful hardware. This is why exact algorithms for general TSP instances rely on sophisticated branch-and-cut and cutting-plane techniques, and why approximation algorithms and heuristics are essential for large instances.
 
@@ -207,9 +216,7 @@ The computational bottleneck is typically step 3 (computing the minimum weight p
 
 ### Approximation guarantee
 
-Let \(\text{OPT}\) denote the cost of an optimal TSP tour.
-
-We outline why Christofides’ algorithm achieves a \(\tfrac{3}{2}\)-approximation for metric TSP:
+Let \(\text{OPT}\) denote the cost of an optimal TSP tour. 
 
 1. The cost of the MST is at most the cost of an optimal tour:
    \[
@@ -262,6 +269,7 @@ If this new tour has a shorter total cost, the 2-Opt move is accepted.
 
 ### 2-Opt heuristic
 
+
 Given an initial tour:
 
 1. Enumerate pairs of indices ((i, j)) along the tour where (i < j) and the edges ((v_i, v_{i+1})), ((v_j, v_{j+1})) are non-adjacent.
@@ -272,3 +280,143 @@ Given an initial tour:
 A naive implementation has (O(n^2)) possible edge pairs and computing each tentative move also takes time, so overall complexity is typically on the order of (O(n^2)) per pass, but in practice 2-Opt is still quite efficient for many instances.
 
 2-Opt is often applied on top of a heuristic like Nearest Neighbor: NN produces an initial tour, and 2-Opt “smooths out” local crossings and shortens the tour.
+
+# Experimental Setup
+
+In the class project, the algorithms were tested on benchmark TSP instances to compare their performance in terms of solution quality and runtime. Two types of experiments were considered:
+
+1. **Benchmark performance (speed):** how long each algorithm takes on instances of different sizes.
+2. **Accuracy:** how close the produced tour cost is to the known optimal tour cost.
+
+## Datasets
+
+Two main instances (and some others) were used:
+
+### `ch150.tsp` (150 cities)
+
+* A TSPLIB instance with 150 cities.
+* The optimal tour cost is known to be (6528).
+* This instance is useful for visualizing tours and for running many experiments quickly.
+
+### `ca4663.tsp` (4663 Canadian cities)
+
+* A large-scale instance with 4663 cities in Canada.
+* The optimal tour cost is known to be (1{,}290{,}319).
+* This instance is a realistic test bed for evaluating how heuristic and approximation algorithms scale.
+
+## Algorithms evaluated
+
+The following algorithms (or combinations) were evaluated:
+
+* **Naive Nearest Neighbor (single start):**
+  NN starting from a fixed node (e.g., node 0).
+
+* **Multi-start Nearest Neighbor:**
+  NN run from many different starting nodes (e.g., 2500 starts), keeping the best tour found.
+
+* **2-Opt on best NN tour:**
+  Apply 2-Opt local search to the best tour obtained from multi-start NN.
+
+* **Christofides’ algorithm (conceptual and/or implemented):**
+  Used as a reference point with a known approximation guarantee.
+
+Where applicable, tour costs were compared to the known optimal costs for `ch150.tsp` and `ca4663.tsp`.
+
+
+# Results and Discussion
+
+In this section we summarize the qualitative behavior and some quantitative results reported in the project.
+
+## Behavior of Nearest Neighbor
+
+On large geometric instances such as `ca4663.tsp`, naive NN from a single start produces a tour that:
+
+* visits all cities and returns to the start (by construction),
+* has many crossing edges,
+* appears visually “rough” and unnatural, especially when plotted on a map.
+
+The tour length is significantly above the optimal cost. When NN is started from many different starting nodes (multi-start NN), the best tour among these runs improves over the naive NN tour, but the improvement eventually plateaus, and tours still contain many local inefficiencies.
+
+## Effect of 2-Opt
+
+Applying 2-Opt to the best multi-start NN tour has a substantial effect:
+
+* many local edge crossings are removed,
+* the tour becomes smoother and more consistent with the geometry of the city layout,
+* the total tour cost is significantly reduced.
+
+For example (approximate numbers as in the presentation):
+
+* On `ca4663.tsp`, naive NN and multi-start NN may produce tours with a cost more than 25% above optimal.
+* After applying 2-Opt to the best NN tour, the tour cost drops to around (1{,}410{,}667), which is roughly 9.3% above the optimal cost (1{,}290{,}319).
+
+On smaller instances like `ch150.tsp`, combining NN with 2-Opt can approach very close to optimal, sometimes within a few percent.
+
+## Comparison to Christofides’ algorithm
+
+Christofides’ algorithm has a worst-case guarantee of at most (1.5) times the optimal tour length for metric TSP. In practice, its performance can be better than this bound, but the algorithm is more computationally expensive than NN or 2-Opt because of the minimum weight perfect matching step.
+
+In the project:
+
+* Christofides’ algorithm (where implemented or measured) produced tours within roughly 9–10% of optimal on the benchmark instances.
+* The combination of NN plus 2-Opt achieved similar or slightly better gaps on the tested instances, but without a worst-case guarantee.
+
+This illustrates an important point:
+
+* **Christofides** offers a provable bound but can be expensive.
+* **NN + 2-Opt** is very fast and often produces high-quality tours in practice, but has no theoretical approximation ratio known in general.
+
+## Qualitative summary
+
+* **Naive NN:** very fast, but often far from optimal and visually rough.
+* **Multi-start NN:** better than naive NN, but improvements saturate; still many local problems.
+* **NN plus 2-Opt:** smooths out the tour and removes many crossings; can get within about 10% of optimal on large instances.
+* **Christofides:** theoretically strong and often good in practice, but more complex and slower.
+
+The choice of algorithm depends on the constraints of the application: if theoretical guarantees are crucial, Christofides is attractive; if speed and simplicity are more important, NN and 2-Opt are compelling.
+
+# Conclusion
+
+The Traveling Salesman Problem is a central NP-Hard problem with deep connections to graph theory, optimization, and complexity theory. While exact algorithms are capable of solving large instances in special cases, they are often too slow for very large or real-time applications.
+
+Approximation algorithms and heuristics play a crucial role in practice. In this report, based on a class presentation, we have:
+
+* defined TSP and presented its decision version,
+* outlined the NP-Hardness of TSP via a reduction from HAM-CYCLE,
+* described the Nearest Neighbor heuristic, Christofides’ algorithm, and the 2-Opt local search,
+* summarized experimental observations on benchmark instances, including a large 4663-city Canadian TSP.
+
+The experiments highlight a trade-off:
+
+* simple heuristics like NN are extremely fast but can be significantly suboptimal,
+* local search methods like 2-Opt can greatly improve heuristic tours,
+* Christofides’ algorithm offers a strong approximation guarantee for metric TSP but is more computationally expensive.
+
+In many practical situations, a combination of a fast heuristic (to obtain an initial tour) and local improvement (like 2-Opt or more advanced k-Opt methods) provides an attractive balance between solution quality and running time.
+
+## Future work
+
+Potential directions for further study include:
+
+* implementing and benchmarking Christofides’ algorithm in detail on multiple TSPLIB instances,
+* exploring stronger local search techniques such as 3-Opt and Lin–Kernighan,
+* combining heuristics with metaheuristics (simulated annealing, genetic algorithms, tabu search),
+* extending the study to related routing problems such as the Vehicle Routing Problem (VRP).
+
+# References
+
+* Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2009).
+  *Introduction to Algorithms* (3rd ed.). MIT Press.
+
+* Islam, J., Sultana, M., & Ahmed, S. (2018).
+  “A tale of revolution: Discovery and development of the TSP.”
+
+* TSPLIB: Standard library of TSP instances and solutions.
+
+* Canada 4663 cities TSP instance (public dataset).
+
+* Christofides, N. (1976).
+  “Worst-case analysis of a new heuristic for the travelling salesman problem.”
+  Technical Report, Carnegie Mellon University.
+
+* Classic references on local search for TSP (2-Opt, 3-Opt, Lin–Kernighan).

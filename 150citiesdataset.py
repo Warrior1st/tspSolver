@@ -331,7 +331,7 @@ def read_tsp(path):
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 #ch150.tsp
 #ca4663.tsp
-TSP_PATH = os.path.join(BASE_DIR, "ca4663.tsp")
+TSP_PATH = os.path.join(BASE_DIR, "ch150.tsp")
 data = read_tsp(TSP_PATH)
 
 data = np.array(data)

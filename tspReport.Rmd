@@ -99,9 +99,9 @@ E' = \{(i,j)\in V\times V \mid i \neq j\}.
  on the same vertex set.
 2. For each pair of vertices (i, j):
 
-   * If \({i, j} \in E\) (original edge exists), set \(c(u, v) = 1\).
-   * If \({i, j} \notin E\), set (c(u, v)) to a very large number (M) \(for example, (M = 2)\).
-3. We now show that graph (G) has a Hamiltonian cycle if and only if (G') has a tour of cost at most (k). If graph G has a hamiltonian cycle h, each edge in h belongs to E and thus has cost 0 in G'. Thus, h is a tour in G' with cost 0.
+   * If \((i, j) \in E\) (original edge exists), set \(c(i, j) = 0\).
+   * If \((i, j) \notin E\), set \(c(i, j) = 1\).
+3. We now show that graph (G) has a Hamiltonian cycle if and only if (G') has a tour of cost at most 0. If graph G has a hamiltonian cycle h, each edge in h belongs to E and thus has cost 0 in G'. Thus, h is a tour in G' with cost 0.
 Conversely, suppose that graph G' has a tour h' of cost at most 0. Since the costs of the edges in E' are 0 and 1, the cost of tour h' is exactly 0 and each edge on the tour must have cost 0. Therefore, h' contains only edges in E. We conclude that h' is a hamiltonian cycle in graph G. 
 
 Since HAM-CYCLE is NP-Complete, and it reduces to TSP in polynomial time, TSP is NP-Hard.
@@ -110,8 +110,8 @@ Since HAM-CYCLE is NP-Complete, and it reduces to TSP in polynomial time, TSP is
 
 The number of possible TSP tours grows factorially. For a symmetric TSP on (n) cities, the number of distinct tours is approximately ((n-1)! / 2). Even for modest (n), this quantity is enormous:
 
-* For (n = 10), there are about \(184{,}440\) tours.
-* For (n = 20), there are on the order of \(10^{16}\) tours.
+* For (n = 10), there are about \(181{,}440\) tours.
+* For (n = 20), there are about \(6*10^{16}\) tours.
 
 Enumerating all tours becomes practically impossible, even with powerful hardware. This is why exact algorithms for general TSP instances rely on sophisticated branch-and-cut and cutting-plane techniques, and why approximation algorithms and heuristics are essential for large instances.
 
@@ -178,9 +178,7 @@ Christofides’ algorithm is a classic approximation algorithm for the **metric 
 c(u, w) \le c(u, v) + c(v, w)
 \]
 
-for all vertices \(u, v, w\). This condition is natural in many geometric and distance-based applications.
-
-Christofides’ algorithm has a proven approximation ratio of at most \(3/2\): it always produces a tour whose cost is at most \(1.5\) times the optimal tour cost.
+for all vertices \(u, v, w\). It achieves an approximation ratio of at most \(3/2\), meaning it always returns a tour whose cost is at most \(1.5\) times the optimal tour cost.
 
 ### Graph-theoretic ingredients
 
@@ -207,36 +205,31 @@ Let (G = (V, E)) be a complete weighted graph with metric edge weights.
 1. Compute a minimum spanning tree (T = (V, F)) of (G).
 2. Let \(U \subseteq V\) be the set of vertices of odd degree in (T).
 3. Compute a minimum weight perfect matching (J) on the subgraph induced by (U).
-4. Form a multigraph \(T' = (V, F \cup J)\), combining the MST edges and the matching edges. In this multigraph, every vertex has even degree.
-5. Find an Eulerian cycle (C) in (T') (this exists because all degrees are even).
-6. Traverse (C) and **shortcut** repeated vertices: whenever you are about to visit a vertex that has already appeared, skip it and go directly to the next new vertex. Because of the triangle inequality, this shortcutting does not increase the total cost.
-7. The resulting sequence of vertices forms a Hamiltonian cycle, i.e., a valid TSP tour.
+4. Form a multigraph \(T' = (V, F \cup J)\), combining the MST edges and the MWPM edges, where \((F \cup J )\) is a multiset that may contain the same edge more than once.
+5. Find an Eulerian cycle (C) in (T').
+6. Shortcut the cycle C to a cycle C' containing exactly n unique vertices.
+7. C' forms a Hamiltonian cycle, i.e., a valid TSP tour.
 
 The computational bottleneck is typically step 3 (computing the minimum weight perfect matching), which in general can be done in \(O(n^{3})\) time for (n) vertices.
 
-### Approximation guarantee
+### 3/2 Approximation guarantee
 
 Let \(\text{OPT}\) denote the cost of an optimal TSP tour. 
 
 1. The cost of the MST is at most the cost of an optimal tour:
    \[
-   w(T) \le \text{OPT},
+   c(T) \le \text{OPT},
    \]
    because removing one edge from an optimal tour yields a spanning tree.
 
-2. The set \(U\) of odd-degree vertices has even cardinality (this is a property of any graph: the number of odd-degree vertices is even).
+   
+2. Consider the optimal solution H' to the TSP of just the odd degree vertices of T. We can break H' to two perfect matchings \(M_{1}\) and \(M_{2}\) by taking every other edge. Because J is the minimum cost perfect matching, we know that \(c(J) \le \min{c(M_{1}), c(M_{2})}\). Furthermore, because H' only visits a subset of the graph, \(c(H') \le OPT\). Therefore, 2\(c(J) \le c(H') \le OPT\).
+The cost of Euler tour of T' is \(c(T) + c(J)\) since it visits all edges exactly once. We know that \(c(T) \le OPT\), thus
+\[
+    (c(T) + c(J) \le OPT + \frac{1}{2}OPT = \frac{3}{2}OPT.
+\]
 
-3. Consider the restriction of an optimal TSP tour to the vertices in \(U\). In a metric space, one can show that there exists a perfect matching on \(U\) of total cost at most \(\tfrac{1}{2},\text{OPT}\). Hence,
-   \[
-   w(J) \le \frac{1}{2},\text{OPT}.
-   \]
-
-4. The Eulerian multigraph formed by \(F \cup J\) has total weight
-   \[
-   w(T) + w(J) \le \text{OPT} + \frac{1}{2},\text{OPT} = \frac{3}{2},\text{OPT}.
-   \]
-
-5. When we shortcut repeated vertices along the Eulerian cycle to obtain a Hamiltonian cycle, the triangle inequality ensures that the resulting tour cannot be longer than the Eulerian walk. Therefore, the final tour has cost at most \(\tfrac{3}{2},\text{OPT}\).
+3. By the triangle inequality, shortcutting repeated vertices does not increase the cost.
 
 Thus Christofides’ algorithm is a polynomial-time \(\tfrac{3}{2}\)-approximation algorithm for metric TSP.
 
@@ -420,3 +413,4 @@ Potential directions for further study include:
   Technical Report, Carnegie Mellon University.
 
 * Classic references on local search for TSP (2-Opt, 3-Opt, Lin–Kernighan).
+* Approximation Algorithms: Traveling Salesman Problem, retrieved from https://ocw.mit.edu/courses/6-046j-design-and-analysis-of-algorithms-spring-2015/9233649044c6d4308f0c6ffe4752b9f5_MIT6_046JS15_Recitation9.pdf
